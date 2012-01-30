@@ -7,26 +7,32 @@ _ = require 'underscore'
 _.str = require 'underscore.string'
 _.mixin _.str.exports()
 
-baseUrl = 'http://www.berlinerbaederbetriebe.de/'
-
 class BathParser
-  constructor: (@body) ->
+  constructor: (@url) ->
+  
+  fetchBody: (cb) ->
+    request @url, (error, response, body) ->
+      cb($(body))
+
+  geocode: (address, cb) ->
+    gm.geocode address, (error, response) ->
+      if !error and response.status == 'OK'
+        location = response.results[0].geometry.location
+        cb { lat: location.lat, lng: location.lng }
+      else
+        console.log 'could not geocode', address
+        cb()
 
   run: (cb) ->
+    await this.fetchBody defer @body
     result =
       address: this.address()
       name: this.name()
       laneLength: this.laneLength()
       openingTimes: this.openingTimes()
-    gm.geocode result.address, (error, response) ->
-      if !error and response.status == 'OK'
-        location = response.results[0].geometry.location
-        result.location = { lat: location.lat, lng: location.lng }
-        console.log 'finished', result.name
-        cb(result)
-      else
-        console.log 'could not geocode', result.address
-        cb()
+    await this.geocode result.address, defer result.location
+    console.log 'finished', result.name
+    cb result
   
   address: ->
     lines = @body.find('#content_left p:first b').html().split '<br>'
@@ -70,32 +76,22 @@ class BathParser
     openingTimes[day] ||= []
     openingTimes[day].push newEntry
 
-
-baths = []
-
-writeBaths = () ->
-  openedBaths = _.reject baths, (bath) ->
-    _.isEmpty bath.openingTimes
-  content = 'Baths = ' + JSON.stringify openedBaths
-  console.log 'writing to baths.json'
-  fs.writeFile 'baths.json', content, (err) ->
-    throw err if err
-
+baseUrl = 'http://www.berlinerbaederbetriebe.de/'
 request baseUrl + '24.html', (error, response, body) ->
   if !error and response.statusCode == 200
-    bathLinks = $(body).find('div#content > p > a')
-    requestFinished = _.after bathLinks.length, writeBaths
+    baths = []
+    bathLinks = $(body).find('div#content > p > a') 
     console.log 'crawling', bathLinks.length, 'baths'
-    bathLinks.each (index, bathLink) ->
-      href = $(bathLink).attr 'href'
-      request baseUrl + href, (error, response, body) ->
-        if !error and response.statusCode == 200
-          new BathParser($(body)).run (bath) ->
-            baths.push bath if bath
-            requestFinished()
-        else
-          console.log 'could not fetch:', baseUrl + href
-          requestFinished()
-
-
+    await
+      for link, i in bathLinks
+        url = baseUrl + $(link).attr 'href'
+        new BathParser(url).run defer baths[i]
+    openedBaths = _.reject baths, (bath) ->
+      _.isEmpty bath.openingTimes
+    content = 'Baths = ' + JSON.stringify openedBaths
+    console.log 'writing to baths.json'
+    fs.writeFile 'baths.json', content, (err) ->
+      throw err if err
+  else
+    console.log "could not access", baseUrl
 
