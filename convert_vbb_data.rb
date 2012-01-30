@@ -5,5 +5,5 @@ end
 require 'json'
 input = File.read ARGV.first
 json = JSON.parse input
-stations = json[0].map {|k,v| {:id => k, :lat => v["a"], :lon => v["n"], :name => v["o"]}}
+stations = json[0].map {|k,v| {:id => k, :lat => v["a"], :lng => v["n"], :name => v["o"]}}
 puts "Stations = #{stations.to_json}"
