@@ -102,7 +102,7 @@
     BathParser.prototype.address = function() {
       var lines;
       lines = this.body.find('#content_left p:first b').html().split('<br>');
-      return lines[0] + ', ' + lines[1];
+      return lines[1] + ', ' + lines[0];
     };
 
     BathParser.prototype.name = function() {

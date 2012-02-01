@@ -24,19 +24,19 @@ class BathParser
         cb()
 
   run: (cb) ->
-    await this.fetchBody defer @body
+    await @fetchBody defer @body
     result =
-      address: this.address()
-      name: this.name()
-      laneLength: this.laneLength()
-      openingTimes: this.openingTimes()
-    await this.geocode result.address, defer result.location
+      address: @address()
+      name: @name()
+      laneLength: @laneLength()
+      openingTimes: @openingTimes()
+    await @geocode result.address, defer result.location
     console.log 'finished', result.name
     cb result
   
   address: ->
     lines = @body.find('#content_left p:first b').html().split '<br>'
-    lines[0] + ', ' + lines[1]
+    lines[1] + ', ' + lines[0]
 
   name: ->
     @body.find('#content h1:first').text()
@@ -68,7 +68,7 @@ class BathParser
 
   addTimeTableEntry: (openingTimes, day, time, comment) ->  
     [from, to] = time.split(' - ')
-    comment = this.cleanComment(comment)
+    comment = @cleanComment(comment)
     if comment
       newEntry = { from, to, comment }
     else
