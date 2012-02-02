@@ -1,4 +1,3 @@
-berlin = require './berlin.json'
 fs = require 'fs'
 gm = require 'googlemaps'
 request = require 'request'
@@ -89,9 +88,8 @@ request baseUrl + '24.html', (error, response, body) ->
     openedBaths = _.reject baths, (bath) ->
       _.isEmpty bath.openingTimes
     content = 'Baths = ' + JSON.stringify openedBaths
-    console.log 'writing to baths.json'
-    fs.writeFile 'baths.json', content, (err) ->
+    console.log 'writing to public/baths.json'
+    fs.writeFile 'public/baths.json', content, (err) ->
       throw err if err
   else
     console.log "could not access", baseUrl
-

@@ -70,7 +70,7 @@ App = (function() {
   App.prototype.reverseGeocode = function(lat, lng, cb) {
     var data, error, latlng, sensor, success;
     latlng = lat + ',' + lng;
-    sensor = true;
+    sensor = false;
     data = {
       latlng: latlng,
       sensor: sensor
@@ -101,7 +101,7 @@ App = (function() {
     (function(__iced_k) {
       __iced_deferrals = new iced.Deferrals(__iced_k, {
         parent: ___iced_passed_deferral,
-        filename: 'app.coffee',
+        filename: 'app/app.coffee',
         funcname: 'App.handleGeolocation'
       });
       app.reverseGeocode(lat, lng, __iced_deferrals.defer({

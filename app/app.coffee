@@ -18,7 +18,7 @@ class App
     
   reverseGeocode: (lat, lng, cb) ->
     latlng = lat + ',' + lng
-    sensor = true
+    sensor = false
     data = { latlng, sensor }
     success = cb
     error = (jqXHR, textStatus, errorThrown) ->

@@ -9,6 +9,7 @@
     "node": "~0.6.7"
   },
   "dependencies": {
+    "express": "git://github.com/visionmedia/express.git",
     "googlemaps": "0.1.6",
     "jquery": "1.6.3",
     "request": "2.9.3",
