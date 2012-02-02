@@ -18,14 +18,13 @@ class App
     
   reverseGeocode: (lat, lng, cb) ->
     latlng = lat + ',' + lng
-    sensor = false
-    data = { latlng, sensor }
+    data = { latlng }
     success = cb
-    error = (jqXHR, textStatus, errorThrown) ->
+    error = (jqXHR, textStatus) ->
       console.error 'error when reverse geocoding', latlng
       console.error 'resonse status was', textStatus
       cb()
-    $.ajax 'http://maps.googleapis.com/maps/api/geocode/json', { data, success, error } 
+    $.ajax '/proxy/reverseGeocode', { data, success, error } 
 
   @handleGeolocation: (position) ->
     app = new App

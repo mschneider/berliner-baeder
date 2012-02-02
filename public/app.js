@@ -68,20 +68,18 @@ App = (function() {
   };
 
   App.prototype.reverseGeocode = function(lat, lng, cb) {
-    var data, error, latlng, sensor, success;
+    var data, error, latlng, success;
     latlng = lat + ',' + lng;
-    sensor = false;
     data = {
-      latlng: latlng,
-      sensor: sensor
+      latlng: latlng
     };
     success = cb;
-    error = function(jqXHR, textStatus, errorThrown) {
+    error = function(jqXHR, textStatus) {
       console.error('error when reverse geocoding', latlng);
       console.error('resonse status was', textStatus);
       return cb();
     };
-    return $.ajax('http://maps.googleapis.com/maps/api/geocode/json', {
+    return $.ajax('/proxy/reverseGeocode', {
       data: data,
       success: success,
       error: error
@@ -110,7 +108,7 @@ App = (function() {
             return address = arguments[0];
           };
         })(),
-        lineno: 37
+        lineno: 36
       }));
       __iced_deferrals._fulfill();
     })(function() {
