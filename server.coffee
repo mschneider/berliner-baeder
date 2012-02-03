@@ -17,19 +17,32 @@ app.get '/proxy/reverseGeocode', (req, res) ->
 
 qs = require 'qs'
 request = require 'request'
-app.get '/proxy/vbb/suggestions', (req, res) ->
-  start = 1
-  REQ0JourneyStopsS0A = req.param('type') || 2
-  REQ0JourneyStopsB = req.param('count') || 1
-  S = req.param('address')
-  params = { start, REQ0JourneyStopsS0A, REQ0JourneyStopsB, S }
-  url = 'http://www.vbb-fahrinfo.de/hafas/ajax-getstop.exe/doy?' + qs.stringify params
+
+vbb_suggest_url = (address, count, type) ->
+  REQ0JourneyStopsS0A = type || 2
+  REQ0JourneyStopsB = count || 1
+  params = { start: 1, REQ0JourneyStopsS0A, REQ0JourneyStopsB, S: address }
+  'http://www.vbb-fahrinfo.de/hafas/ajax-getstop.exe/doy?' + qs.stringify params
+
+vbb_suggest = (address, count, type, cb) ->    
+  cb ||= type || count
+  url = vbb_suggest_url(address, count, type)
   request {url, encoding: 'binary'}, (error, response, body) ->
     if not error and response.statusCode == 200
       pattern = /^SLs\.sls=(.+);SLs\.showSuggestion\(\);$/
-      { suggestions } = JSON.parse pattern.exec(body)[1]
-      console.log '[GET]', req.url, '->', suggestions.length, 'suggestion'
-      res.send suggestions
+      match = pattern.exec(body)
+      if match and match.length == 2
+        { suggestions } = JSON.parse match[1]
+        cb null, suggestions
+      else
+        cb "could not parse suggestions. probably the vbb changed it's webservice."
+    else
+      cb(error || "could not reach vbb server. response status was " + response.statusCode)
+
+app.get '/proxy/vbb/suggestions', (req, res) ->
+  vbb_suggest req.param('address'), req.param('count'), req.param('type'), (error, suggestions) ->
+    console.log '[GET]', req.url, '->', suggestions.length, 'suggestion'    
+    res.send suggestions
 
 port = process.env.PORT || 8080;
 app.listen port, ->
