@@ -12,6 +12,7 @@
     "express": "git://github.com/visionmedia/express.git",
     "googlemaps": "0.1.6",
     "jquery": "1.6.3",
+    "qs": "0.4.1",
     "request": "2.9.3",
     "underscore": "1.3.0",
     "underscore.string": "2.0.0"

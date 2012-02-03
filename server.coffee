@@ -15,6 +15,21 @@ app.get '/proxy/reverseGeocode', (req, res) ->
     console.log '[GET]', req.url, '->', result
     res.send result
 
+qs = require 'qs'
+request = require 'request'
+app.get '/proxy/vbb/suggestions', (req, res) ->
+  start = 1
+  REQ0JourneyStopsS0A = req.param('type') || 2
+  REQ0JourneyStopsB = req.param('count') || 1
+  S = req.param('address')
+  params = { start, REQ0JourneyStopsS0A, REQ0JourneyStopsB, S }
+  url = 'http://www.vbb-fahrinfo.de/hafas/ajax-getstop.exe/doy?' + qs.stringify params
+  request url, (error, response, body) ->
+    if not error and response.statusCode == 200
+      pattern = /^SLs\.sls=(.+);SLs\.showSuggestion\(\);$/
+      { suggestions } = JSON.parse pattern.exec(body)[1]
+      res.send suggestions
+
 port = process.env.PORT || 8080;
 app.listen port, ->
   console.log 'server listening at port', port
