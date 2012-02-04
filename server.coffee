@@ -37,12 +37,32 @@ vbb_suggest = (address, count, type, cb) ->
       else
         cb "could not parse suggestions. probably the vbb changed it's webservice."
     else
-      cb(error || "could not reach vbb server. response status was " + response.statusCode)
+      cb(error || ("could not reach vbb server. response status was " + response.statusCode))
+
+vbb_route_params = (options) ->
+  for option in ["origin", "destination"]
+    throw new Error("options." + option + " is a required argument") unless options[option]
+  accessible = switch options.accessible
+    when "barrier-free" then 0
+    when "partly" then 1
+    else 2
+  
+
+vbb_route = (options, cb) ->
+
+
+  
+#destination, source, time, departure, accessible
+
+  # departure = true unless departure?
+  # time ?
 
 app.get '/proxy/vbb/suggestions', (req, res) ->
   vbb_suggest req.param('address'), req.param('count'), req.param('type'), (error, suggestions) ->
     console.log '[GET]', req.url, '->', suggestions.length, 'suggestion'    
     res.send suggestions
+
+app.
 
 port = process.env.PORT || 8080;
 app.listen port, ->

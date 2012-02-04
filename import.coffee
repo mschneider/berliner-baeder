@@ -15,7 +15,7 @@ class BathParser
 
   geocode: (address, cb) ->
     gm.geocode address, (error, response) ->
-      if !error and response.status == 'OK'
+      if not error and response.status == 'OK'
         location = response.results[0].geometry.location
         cb { lat: location.lat, lng: location.lng }
       else
@@ -50,23 +50,22 @@ class BathParser
   openingTimes: ->
     result = {}
     lastDay = ''
-    that = this
-    @body.find('#content_ul > table:first tr').each (index, row) ->
-      [day, time, comment] = _.map $(row).find('td'), (node) ->
+    @body.find('#content_ul > table:first tr').each (index, row) =>
+      [day, time, comment] = for node in $(row).find('td')
         _.trim $(node).text()
       day ||= lastDay
-      that.addTimeTableEntry result, day, time, comment if time
+      @addTimeTableEntry result, day, time, comment if time
       lastDay = day
     result
 
   cleanComment: (comment) ->
     if _.str.include comment, 'Parallelbetrieb'
       comment = _.str.insert comment, 'Parallelbetrieb'.length, ' '
-      comment = comment.split('/ ').join('/')
+      comment = comment.split('/ ').join '/'
     comment = _.trim comment, '*'
 
   addTimeTableEntry: (openingTimes, day, time, comment) ->  
-    [from, to] = time.split(' - ')
+    [from, to] = time.split ' - '
     comment = @cleanComment(comment)
     if comment
       newEntry = { from, to, comment }
@@ -79,14 +78,13 @@ baseUrl = 'http://www.berlinerbaederbetriebe.de/'
 request baseUrl + '24.html', (error, response, body) ->
   if !error and response.statusCode == 200
     baths = []
-    bathLinks = $(body).find('div#content > p > a') 
+    bathLinks = $(body).find 'div#content > p > a'
     console.log 'crawling', bathLinks.length, 'baths'
     await
       for link, i in bathLinks
         url = baseUrl + $(link).attr 'href'
         new BathParser(url).run defer baths[i]
-    openedBaths = _.reject baths, (bath) ->
-      _.isEmpty bath.openingTimes
+    openedBaths = (bath for bath in baths when not _.isEmpty bath.openingTimes)
     content = 'Baths = ' + JSON.stringify openedBaths
     console.log 'writing to public/baths.json'
     fs.writeFile 'public/baths.json', content, (err) ->
