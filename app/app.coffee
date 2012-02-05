@@ -17,17 +17,14 @@ class App
     closestBath
     
   reverseGeocode: (lat, lng, cb) ->
-    latlng = lat + ',' + lng
-    data = { latlng }
-    success = cb
+    data = { latlng: lat + ',' + lng }
     error = (jqXHR, textStatus) ->
       console.error 'error when reverse geocoding', latlng
       console.error 'resonse status was', textStatus
       cb()
-    $.ajax '/proxy/reverseGeocode', { data, success, error }
+    $.ajax '/proxy/reverseGeocode', { data, success: cb, error }
   
   vbbGeocode: (address, cb) ->
-    data = { address }
     success = (suggestions)->
       if suggestions.length == 1
         cb suggestions[0].id
@@ -38,20 +35,40 @@ class App
       console.error 'error when geocoding via vbb', address
       console.error 'resonse status was', textStatus
       cb()
-    $.ajax '/proxy/vbb/suggestions', { data, success, error }
+    $.ajax '/proxy/vbb/suggestions', { data: { address }, success, error }
+  
+  vbbConnections: (origin, destination , cb) ->
+    error = (jqXHR, textStatus) ->
+      console.error 'error when fetching connections via vbb', origin, destination
+      console.error 'resonse status was', textStatus
+      cb()
+    $.ajax '/proxy/vbb/connections', { data: { origin, destination }, success: cb, error }
+  
+  bathConnections: (origin, bath, cb) ->
+    @vbbGeocode bath.address, (destination) =>
+      @vbbConnections origin, destination, (connections) ->
+        cb connections
 
   @handleGeolocation: (position) ->
     app = new App
     lat = position.coords.latitude
     lng = position.coords.longitude
-    console.log "you are at:", lat, lng 
+    log "you are at:", lat, lng 
     bath = app.findBath position
-    console.log "closest bath:", bath.name
+    log "closest bath:", bath.name
     await app.reverseGeocode lat, lng, defer address
-    console.log "closest address:", address
-    bathIDs = []
-    await
-      app.vbbGeocode address, defer myID
-      for bath, i in Baths
-        app.vbbGeocode bath.address, defer bathIDs[i]
-    console.log "my", myID, bathIDs[0]
+    log "closest address:", address
+    await app.vbbGeocode address, defer origin
+    log "origin:", origin
+    await app.bathConnections origin, b, defer b.connections for b in Baths
+    log "fetched baths"
+    closestBath = Baths.reduce (l, r) ->
+      for o in [l, r] 
+        o.firstArrivingConnection ||= o.connections.reduce (l, r) ->
+          if r.time.arrival < l.time.arrival then r else l
+      if r.firstArrivingConnection.time.arrival < l.firstArrivingConnection.time.arrival then r else l
+    log "first possible arrival at:", closestBath.firstArrivingConnection.time.arrival
+    log "closest Bath via VBB is:", closestBath.name
+
+log = ->
+  console.log new Date, arguments...
