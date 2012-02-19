@@ -1,30 +1,83 @@
+class Bath
+  constructor: (other) ->
+    for k,v of other
+      this[k] = v
+    @lat = Number(@location.lat)
+    @lng = Number(@location.lng)
+
+  distanceTo: (lat, lng) ->
+    x = (@lng - lng) * Math.cos((lat + @lat)/2)
+    y =  @lat - lat
+    Math.sqrt(x*x + y*y)
+
+  closingTime: ->
+    _.last(_.sortBy(@todaysTimes, (opened) -> opened.to)).to
+
+  firstArrivalTime: ->
+    @connections[0].time.arrival
+
+  isOpen: (day, time) ->
+    @todaysTimes ||= @openingTimes[day]
+    if @todaysTimes?
+      for opened in @todaysTimes
+        if opened.from <= time and opened.to > time
+          return true
+    return false
+
+  fetchConnections: (origin, cb) ->
+    VBB.geocode @address, (destination) =>
+      VBB.connections origin, destination, (result) =>
+        @connections = _.sortBy result, (connection) -> connection.time.arrival
+        cb?()
+
+  @all: ->
+    (new Bath(b) for b in Baths)
+
+
 class App
-  distance: (position, bath) ->
-    lat1 = position.coords.latitude
-    lng1 = position.coords.longitude
-    lat2 = Number(bath.location.lat)
-    lng2 = Number(bath.location.lng)
-    x = (lng2-lng1) * Math.cos((lat1+lat2)/2)
-    y = (lat2-lat1)
-    Math.sqrt(x*x + y*y);
-    
-  findBath: (position) ->
-    for bath in Baths
-      closestBath ||= bath
-      bath.distance = @distance(position, bath)
-      if closestBath.distance > bath.distance
-        closestBath = bath
-    closestBath
-    
-  reverseGeocode: (lat, lng, cb) ->
-    data = { latlng: lat + ',' + lng }
-    error = (jqXHR, textStatus) ->
-      console.error 'error when reverse geocoding', latlng
-      console.error 'resonse status was', textStatus
-      cb()
-    $.ajax '/proxy/reverseGeocode', { data, success: cb, error }
-  
-  vbbGeocode: (address, cb) ->
+  constructor: (position) ->
+    @lat = position.coords.latitude
+    @lng = position.coords.longitude
+    @setDate new Date()
+    @openedBaths = (bath for bath in Bath.all() when bath.isOpen @day, @time)
+    @baths = _.sortBy(@openedBaths, (bath) => bath.distanceTo @lat, @lng)[0..9]
+
+  setDate: (date) ->
+    @day = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][date.getDay()]
+    @time = @formatTime date.getHours(), date.getMinutes(), 45
+
+  formatTime: (hours, minutes, minuteOffset) ->
+    inverseMinuteOffset = 60 - minuteOffset
+    if minutes < inverseMinuteOffset
+      minutes += minuteOffset
+    else
+      minutes -= inverseMinuteOffset
+      hours += 1
+    "#{hours}:#{minutes}"
+
+  fetchBathConnections: (cb) ->
+    await reverseGeocode @lat, @lng, defer @address
+    await VBB.geocode @address, defer @origin
+    await bath.fetchConnections @origin, defer() for bath in @baths
+    bathIsOpenUponArrival = (bath) =>
+      time = bath.firstArrivalTime()
+      [hours, minutes] = time.split ":"
+      time = @formatTime hours, minutes, 45
+      bath.isOpen @day, time
+    @baths = (b for b in @baths when bathIsOpenUponArrival(b))
+    @baths = _.sortBy @baths, (b) -> b.firstArrivalTime()
+    cb()
+
+  @handleGeolocation: (position) ->
+    app = new App(position)
+    log "you are at: (#{app.lat}, #{app.lng})"
+    log "#{app.baths.length} baths are still opened"
+    await app.fetchBathConnections defer()
+    log "#{app.baths.length} baths will be open upon arrival"
+    log b.name, b.firstArrivalTime(), b.closingTime() for b in app.baths
+
+class VBB
+  @geocode: (address, cb) ->
     success = (suggestions)->
       if suggestions.length == 1
         cb suggestions[0].id
@@ -36,39 +89,21 @@ class App
       console.error 'resonse status was', textStatus
       cb()
     $.ajax '/proxy/vbb/suggestions', { data: { address }, success, error }
-  
-  vbbConnections: (origin, destination , cb) ->
+
+  @connections: (origin, destination , cb) ->
     error = (jqXHR, textStatus) ->
       console.error 'error when fetching connections via vbb', origin, destination
       console.error 'resonse status was', textStatus
       cb()
     $.ajax '/proxy/vbb/connections', { data: { origin, destination }, success: cb, error }
-  
-  bathConnections: (origin, bath, cb) ->
-    @vbbGeocode bath.address, (destination) =>
-      @vbbConnections origin, destination, (connections) ->
-        cb connections
 
-  @handleGeolocation: (position) ->
-    app = new App
-    lat = position.coords.latitude
-    lng = position.coords.longitude
-    log "you are at:", lat, lng 
-    bath = app.findBath position
-    log "closest bath:", bath.name
-    await app.reverseGeocode lat, lng, defer address
-    log "closest address:", address
-    await app.vbbGeocode address, defer origin
-    log "origin:", origin
-    await app.bathConnections origin, b, defer b.connections for b in Baths
-    log "fetched baths"
-    closestBath = Baths.reduce (l, r) ->
-      for o in [l, r] 
-        o.firstArrivingConnection ||= o.connections.reduce (l, r) ->
-          if r.time.arrival < l.time.arrival then r else l
-      if r.firstArrivingConnection.time.arrival < l.firstArrivingConnection.time.arrival then r else l
-    log "first possible arrival at:", closestBath.firstArrivingConnection.time.arrival
-    log "closest Bath via VBB is:", closestBath.name
+reverseGeocode = (lat, lng, cb) ->
+  data = { latlng: lat + ',' + lng }
+  error = (jqXHR, textStatus) ->
+    console.error 'error when reverse geocoding', latlng
+    console.error 'resonse status was', textStatus
+    cb()
+  $.ajax '/proxy/reverseGeocode', { data, success: cb, error }
 
 log = ->
   console.log new Date, arguments...
